@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
-###############################
-### Jennifer Meneghin       ###
-### August 10, 2010         ###
-### Updatd January 25, 2011 ###
-###############################
+################################
+### Jennifer Meneghin        ###
+### August 10, 2010          ###
+### Updated January 25, 2011 ###
+################################
 
 #---------------------------------------------------------------------------------------------------------------------------
 #Deal with passed parameters
@@ -105,9 +105,9 @@ print "REMOVED TOO SHORT = $count_too_short\n";
 if ($remove_chimera_flag == 1) {
     print "REMOVED CHIMERA = $count_chimera\n";
 }
-else {
-    print "FOUND CHIMERA (not removed) = $count_chimera\n";
-}
+#else {
+#    print "FOUND CHIMERA (not removed) = $count_chimera\n";
+#}
 print "SALVAGED = $count_salvaged\n";
 print "TRIMMED = $count_trimmed\n";
 print "TOTAL = $count_total\n";
@@ -118,7 +118,7 @@ print "TOTAL = $count_total\n";
 sub trim_it {
     if (length($header) > 0 && length($string) > 0) {
 	if ($string =~ /$stringa/ || $string =~ /$stringt/) {
-	    print "FOUND A POLY(A/T): $string\n";
+	    #print "FOUND A POLY(A/T): $string\n";
 	    if ($string =~ /^$stringa/) {
 		@letters = split(//, $string);
 		for $i (0..$#letters) {
@@ -129,7 +129,7 @@ sub trim_it {
 		    }
 		}
 		$count_trimmed++;
-		print "trimmed front Poly(A).\n";
+		print "trimmed front Poly(A): $header\n";
 		#print "NEW STRING: $string\n";
 	    }
 	    if ($string =~ /^$stringt/) {
@@ -142,7 +142,7 @@ sub trim_it {
 		    }
 		}
 		$count_trimmed++;
-		print "trimmed front Poly(T).\n";
+		print "trimmed front Poly(T): $header\n";
 		#print "NEW STRING: $string\n";
 	    }
 	    if ($string =~ /$stringa$/) {
@@ -157,7 +157,7 @@ sub trim_it {
 		    $length--;
 		}
 		$count_trimmed++;
-		print "trimmed end Poly(A)\n";
+		print "trimmed end Poly(A): $header\n";
 		#print "NEW STRING: $string\n";
 	    }
 	    if ($string =~ /$stringt$/) {
@@ -172,13 +172,13 @@ sub trim_it {
 		    $length--;
 		}
 		$count_trimmed++;
-		print "trimmed end Poly(T)\n";
+		print "trimmed end Poly(T): $header\n";
 		#print "NEW STRING: $string\n";
 	    }
 	    if ( length($string) < $minimum_sequence_length) {
 		print REMOVED $header;
 		print REMOVED "$string\n";
-		print "Removed too short\n";
+		print "Removed too short: $header\n";
 		$count_removed++;
 		$count_too_short++;
 		$count_total++;
@@ -187,7 +187,7 @@ sub trim_it {
 		if ($remove_chimera_flag == 1) {
  		    print REMOVED $header;
 		    print REMOVED "$string\n";
-		    print "Removed as chimera (Poly(A/T) in middle)\n";
+		    print "Removed as chimera (Poly(A/T) in middle): $header\n";
 		    $count_removed++;
 		    $count_chimera++;
 		    $count_total++;
@@ -195,7 +195,7 @@ sub trim_it {
 		else {
  		    print SALVAGED $header;
 		    print SALVAGED "$string\n";
-		    print "Found chimera (Poly(A/T) in middle). Did not remove.\n";
+		    #print "Found chimera (Poly(A/T) in middle). Did not remove: $header\n";
 		    $count_salvaged++;
 		    $count_chimera++;
 		    $count_total++;
@@ -204,11 +204,11 @@ sub trim_it {
 	    else {
 		print SALVAGED $header;
 		print SALVAGED "$string\n";
-		print "Salvaged after trim\n";
+		print "Salvaged after trim: $header\n";
 		$count_salvaged++;
 		$count_total++;;
 	    }
-	    print "\n";
+	    #print "\n";
 	}
 	else {
 	    print SALVAGED $header;
@@ -226,7 +226,7 @@ sub usage {
     print "-m integer:\tThe minimum length allowed for a fasta record. (Optional. Default is 50.)\n";
     print "-p integer:\tThe minimum length of a Poly(A/T) sequence. (Optional. Default is 8.)\n";
     print "-c 1\t\t1 = Remove sequences with Poly(A/T) in the middle of the sequence, 0 = Don't remove.\n";
-    print "\t\t(Optional. Default is 0 = Don't remove.\n\n";
+    print "\t\t(Optional. Default is 0 = Don't remove.)\n\n";
     print "This script trims any Poly(A/T) tails from the beginning and end of each sequence,\n";
     print "then removes the sequence if it's length is less than the minimum number provided (-m integer).\n";
     print "If -c is set to 1, it also removes any sequences with a Poly(A/T) sequence in the middle of the sequence (assumed to be chimera).\n\n";
