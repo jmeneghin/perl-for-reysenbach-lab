@@ -84,6 +84,7 @@ while ($homopolymer_count > 0) {
 	    $string = $string . $line;
 	}
     }
+    $records{$header} = $string;
     $homopolymer_count = &process_string($i);
     $total_seq_length = $total_seq_length + length($string);
     $average_seq_length = $total_seq_length / $count;
@@ -241,18 +242,18 @@ sub process_string {
     return $counta + $countt + $countg + $countc +$countx + $countn;
 }
 sub usage {
-    print "\nUsage: poly_count.pl -f fasta_file -m integer\n";
+    print "\nUsage: homopolymer_count.pl -f fasta_file -m integer\n";
     print "\nParameters:\n";
     print "-f fasta_file:\tThe fasta file you wish to analyze.\n";
     print "-m integer:\tThe minimum number of consecutive nucleotides to consider. Optional. Default is 5.\n";
-    print "-o out_file:\tWrites the sequence ID output to this file. Optional. Default is homopolymers.txt.\n\n";
+    print "-o out_file:\tWrites the sequence ID output to this file. Optional. Default is homopolymers.fasta.\n\n";
     print "This program returns the number of fasta entries with at least N consecutive Zs,\n";
-    print "where N = is the range from the integer provided to the point that their are no more homopolymers,\n";
+    print "where N = is the range from the integer provided to the point that there are no more homopolymers,\n";
     print "and Z = A, G, C, T, X, and N.\n\n";
     print "It also returns the number of entries in the fasta file, and the average sequence length.\n\n";
     print "The output is a tab delimmited matrix, written to standard out.\n";
     print "To write the output to a file, run as follows:\n";
-    print "poly_count.pl -f fasta_file -m an_integer >my_file\n\n";
+    print "poly_count.pl -f fasta_file -m an_integer >my_file.txt\n\n";
     print "This file also returns a fasta file with the sequence IDs found with more than the minimum number of\n";
     print "consecutive nucleotides, along with nucleotide and count found (e.g. A=24, C=8).\n\n";
     print "Jennifer Meneghin\n";
