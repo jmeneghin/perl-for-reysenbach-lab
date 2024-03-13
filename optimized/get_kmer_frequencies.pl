@@ -75,34 +75,25 @@ process_it();
 say "Sorting...";
 my (%kmers, %records);
 
-for my $i (sort keys %knucs) {
-    my ($record, $kmer) = split /\t/, $i;
+for my $record (keys %knucs) {
+    for my $kmer (keys %{$knucs{$record}} ) { # or postfix deref $knucs{$record}->%*
+        $kmers{$kmer}++;
+    }
 
-    $kmers{$kmer}++;
     $records{$record}++;
 }
+my @record_keys = sort keys %records;
 
 say "Printing...";
-print $out_fh "${k}-mer";
-for my $j (sort keys %records) {
-    #print $out_fh "\t${prefix}_$j"; # is there a bug in the original?
-    print $out_fh "\t$j"; # this is the output of the original
-}
-print $out_fh "\n";
+say $out_fh join "\t", "${k}-mer", @record_keys; # header line
 
 my $testsum = 0;
 for my $i (sort keys %kmers) {
-    print $out_fh $i;
-    for my $j (sort keys %records) {
-        my $key = join "\t", $j, $i;
-        if ($knucs{$key}) {
-            print $out_fh "\t$knucs{$key}";
-            $testsum += $knucs{$key};
-        } else {
-            print $out_fh "\t0";
-        }
-    }
-    print $out_fh "\n";
+    print $out_fh join( "\t",
+        $i, 
+        map { $knucs{$_}->{$i} || 0 } @record_keys
+        ), "\n";
+#    $testsum += $_ for @items;
 }
 
 #print "TEST SUM = $testsum\n";
@@ -133,21 +124,19 @@ USAGE
 }
 
 sub process_it {
-    my @letters = split //, $seq;
-    my $end     = @letters - $k;
+    #my @letters = split //, $seq;
+    my $end     = length($seq) - $k;
 
     for my $i (0 .. $end) {
-        my $thiskmer = q{};
-        for my $j ($i .. ($i + $k - 1)) {
-            $thiskmer .= $letters[$j];
-        }
+        #my $thiskmer = join q{}, @letters[ $i .. ($i + $k - 1) ];
+        my $thiskmer = substr($seq, $i, $k);
         my $rckmer = rc_seq($thiskmer);
 
         #print "$id\tthiskmer = $thiskmer\n";
         #print "$id\trc  kmer = $rckmer\n";
-        my $key = join "\t", $id, ($thiskmer le $rckmer ? $thiskmer : $rckmer);
+        my $key = ($thiskmer le $rckmer ? $thiskmer : $rckmer);
 
-        $knucs{$key}++;
+        $knucs{$id}->{$key}++;
     }
     $seq = q{};
     $id  = q{};
@@ -155,23 +144,7 @@ sub process_it {
 
 sub rc_seq {
     my ($mykmer)  = @_;
-    my @myletters = split //, $mykmer;
-    my (@rcmykmer, $thisrcmykmer);
+    $mykmer =~ tr/ACGT/TGCA/;
 
-    for my $i (0 .. $k - 1) {
-        if ($myletters[$i] eq "A") {
-            $rcmykmer[ $k - $i - 1 ] = "T";
-        } elsif ($myletters[$i] eq "C") {
-            $rcmykmer[ $k - $i - 1 ] = "G";
-        } elsif ($myletters[$i] eq "G") {
-            $rcmykmer[ $k - $i - 1 ] = "C";
-        } elsif ($myletters[$i] eq "T") {
-            $rcmykmer[ $k - $i - 1 ] = "A";
-        } else {
-            $rcmykmer[ $k - $i - 1 ] = $myletters[$i];    #No swap of Ns and such
-        }
-    }
-    $thisrcmykmer = join q{}, map { $rcmykmer[$_] } (0 .. $k - 1);
-
-    return $thisrcmykmer;
+    return reverse $mykmer;
 }

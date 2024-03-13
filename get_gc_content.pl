@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 ####################################################################################################
 ### Get GC Content                                                                               ###
 ### Usage: get_gc_content.pl <fasta file>                                                        ###
@@ -13,104 +13,102 @@
 ### This script now works properly with sequences that contain spaces.                           ###
 ### September 20, 2010                                                                           ###
 ###                                                                                              ###
-### This script now also returns the total nucleotide count, along with the number of of         ###
+### This script now also returns the total nucleotide count, along with the number of            ###
 ### A's, G's, C's and T's for each fasta record.                                                 ###
 ### September 21, 2010                                                                           ###
 ####################################################################################################
+
+use warnings;
+use strict;
+use v5.10;
+
 #---------------------------------------------------------------------------------------------------------------------------
 #Deal with passed parameters
 #---------------------------------------------------------------------------------------------------------------------------
-if ($#ARGV == -1) {
-    usage();
-    exit;
-}
-$fasta_file = $ARGV[0];
-$out_file = "gc_out.txt";
-unless ( open(IN, "$fasta_file") ) {    
-    print "Got a bad fasta file: $fasta_file\n\n";
-    exit;
-}
-unless ( open(OUT, ">$out_file") ) {
-    print "Couldn't create $out_file\n";
-    exit;
-}
-print "Parameters:\nfasta file = $fasta_file\noutput file = $out_file\n\n";
+my $fasta_file = shift @ARGV;
+usage() unless $fasta_file;
+
+my $out_file = 'gc_out.txt';
+open my $fh_in,  '<', $fasta_file or die "Can't open fasta file '$fasta_file': $!\n\n";
+open my $fh_out, '>', $out_file   or die "Couldn't create $out_file: $!\n";
+
+say <<"HEAD";
+Parameters:
+fasta file = $fasta_file
+output file = $out_file
+HEAD
+
 #---------------------------------------------------------------------------------------------------------------------------
 #The main event
 #---------------------------------------------------------------------------------------------------------------------------
-print OUT "ID\t% GCContent\tTotal Count\tG Count\tC Count\tA Count\tT Count\n";
-$seq = "";
-while (<IN>) {
+say $fh_out join "\t", 'ID', '% GCContent', 'Total Count', 'G Count', 'C Count',
+    'A Count', 'T Count';
+my $seq = q{};
+
+while (<$fh_in>) {
     chomp;
     if (/^>/) {
-	#finish up previous line.
-	if (length($seq) > 0) {
-	    &process_it;
-	}
-	#start new line.
-	$id = $_;
-	$id =~ s/^>(.+?)\s.+$/$1/g;
-	print OUT "$id\t";
-    }
-    else {
-	$seq = $seq . $_;
+
+        #finish up previous line.
+        if (length($seq) > 0) {
+            process_it($seq);
+        }
+
+        #start new line.
+        my ($id) = /^>(\S+)/;    # removes leading >
+        print $fh_out "$id\t";
+    } else {
+        $seq .= $_;
     }
 }
 
 #finish up last line.
-&process_it;
+process_it($seq);
 
-close(IN);
-close(OUT);
+close($fh_in);
+close($fh_out);
+
+exit;
 
 sub usage {
-    print "Get GC Content\n";
-    print "Usage: get_gc_content.pl <fasta file>\n";
-    print "This program takes a fasta file as it's first (and only) parameter.\n\n";
-    print "It returns a tab delimited file (gc_out.txt): column 1 = header ID (everything between \">\"\n";
-    print "and the first space in the header), and column 2 = gc content for the fasta entry.\n\n";
-    print "Jennifer Meneghin\n";
-    print "July 23, 2009\n\n";
-    print "Updated September 20, 2010:\n";
-    print "This script now works properly with sequences that contain spaces.\n\n";
-    print "Updated September 21, 2010:\n";
-    print "This script now also returns the total nucleotide count, along with the number of of A's, G's, C's and T's for each fasta record.\n\n";
+    print <<USAGE;
+Get GC Content
+Usage: $0 <fasta file>
+This program takes a fasta file as it's first (and only) parameter.
+
+It returns a tab delimited file (gc_out.txt): column 1 = header ID (everything between ">"
+and the first space in the header), and column 2 = gc content for the fasta entry.
+
+Jennifer Meneghin
+July 23, 2009
+
+Updated September 20, 2010:
+This script now works properly with sequences that contain spaces.
+
+Updated September 21, 2010:
+This script now also returns the total nucleotide count, along with the number of A's, G's, C's and T's for each fasta record.
+
+USAGE
+    exit;
 }
 
 sub process_it {
-    @letters = split(//, $seq);
-    $gccount = 0;
-    $totalcount = 0;
-    $acount = 0;
-    $tcount = 0;
-    $gcount = 0;
-    $ccount = 0;
-    foreach $i (@letters) {
-	if (lc($i) =~ /[a-z]/) {
-	    $totalcount++;
-	}
-	if (lc($i) eq "g" || lc($i) eq "c") {
-	    $gccount++;
-	}
-	if (lc($i) eq "a") {
-	    $acount++;
-	}
-	if (lc($i) eq "t") {
-	    $tcount++;
-	}
-	if (lc($i) eq "g") {
-	    $gcount++;
-	}
-	if (lc($i) eq "c") {
-	    $ccount++;
-	}
+    my @letters = split //, lc shift;
+    my ($gccount, $totalcount, $acount, $tcount, $gcount, $ccount) = (0) x 6;
+
+    foreach my $i (@letters) {
+        if ($i =~ /[a-z]/) { $totalcount++ }
+        if ($i eq 'g' || $i eq 'c') { $gccount++ }
+        if ($i eq 'a') { $acount++ }
+        if ($i eq 't') { $tcount++ }
+        if ($i eq 'g') { $gcount++ }
+        if ($i eq 'c') { $ccount++ }
     }
-    if ($totalcount > 0) {
-	$gccontent = (100 * $gccount) / $totalcount;
-    }
-    else {
-	$gccontent = 0;
-    }
-    print OUT "$gccontent\t$totalcount\t$gcount\t$ccount\t$acount\t$tcount\n";
-    $seq = "";
+    my $gccontent = $totalcount > 0
+        ? (100 * $gccount / $totalcount)    # rounded to 3 decimals
+        #? sprintf("%.3f", 100 * $gccount / $totalcount)    # rounded to 3 decimals
+        : 0;
+
+    say $fh_out join("\t", $gccontent, $totalcount, $gcount, $ccount, $acount, $tcount);
+    $seq = q{};
 }
