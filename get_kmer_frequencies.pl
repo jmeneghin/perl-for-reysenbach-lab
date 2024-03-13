@@ -13,180 +13,165 @@
 ### Jennifer Meneghin                                                   ###
 ### February 10, 2016                                                   ###
 ###########################################################################
+#
+# Output identical to original jmeneghin/get_kmer_frequencies.pl - duffee, July 2023
+#
 #---------------------------------------------------------------------------------------------------------------------------
 #Deal with passed parameters
 #---------------------------------------------------------------------------------------------------------------------------
-if ($#ARGV == -1) {
-    usage();
-    exit;
-}
-$fasta_file = $ARGV[0];
-#$prefix = "Ta";
-$k = $ARGV[1];
-$prefix = $ARGV[2];
-$out_file = "${prefix}_kmers.txt";
-unless ( open(IN, "$fasta_file") ) {    
-    print "Got a bad fasta file: $fasta_file\n\n";
-    exit;
-}
-unless ( open(OUT, ">$out_file") ) {
-    print "Couldn't create $out_file\n";
-    exit;
-}
-print "Parameters:\nfasta file = $fasta_file\noutput file = $out_file\nk = $k\n";
 
+use warnings;
+use strict;
+use v5.10;
+
+usage() unless @ARGV;
+
+my ($fasta_file, $k, $prefix) = @ARGV;
+my $out_file = "${prefix}_kmers.txt";
+
+open my $in_fh,  '<', $fasta_file or die "Got a bad fasta file: $fasta_file : $!\n";
+open my $out_fh, '>', $out_file   or die "Couldn't create $out_file: $!\n";
+
+say join "\n", "Parameters:", "fasta file = $fasta_file", "output file = $out_file",
+    "k = $k";
 
 #---------------------------------------------------------------------------------------------------------------------------
 #The main event
 #---------------------------------------------------------------------------------------------------------------------------
 
-$start = time();
+my $start = time();
 
-$seq = "";
-$pc = 0;
-$linecount = 0;
-while (<IN>) {
+my ($seq, $id, %knucs) = (0, 0, ());
+my ($pc,  $linecount) = (0, 0);
+
+while (<$in_fh>) {
     chomp;
     if (/^>/) {
-	#finish up previous line.
-	if (length($seq) > 0) {
-	    &process_it;
-	}
-	#start new line.
-	$id = $_;
-	$id =~ s/^>//g;
-	$pc++;
-	if ($pc % 100 == 0) {
-	    print "count = $pc\n";
-	}
-    }
-    else {
-	$seq = $seq . uc($_);
+
+        #finish up previous line.
+        if (length($seq) > 0) {
+            process_it();
+        }
+
+        #start new line.
+        $id = $_;
+        $id =~ s/^>//g;
+        $pc++;
+        if ($pc % 100 == 0) {
+            say "count = $pc";
+        }
+    } else {
+        $seq .= uc($_);
     }
     $linecount++;
     if ($linecount % 10000 == 0) {
-	print "line count = $linecount\n";
+        say "line count = $linecount";
     }
 }
 
 #finish up last line.
-&process_it;
+process_it();
 
-print "Sorting...\n";
-%kmers;
-%records;
-for $i (sort keys %knucs) {
-    @parts = split(/\t/, $i);
-    $record = $parts[0];
-    $kmer = $parts[1];
-    if ($kmers{$kmer}) {
-	$kmers{$kmer} = $kmers{$kmer} + 1;
-    }
-    else {
-	$kmers{$kmer} = 1;
-    }
-    if ($records{$record}) {
-	$records{$record} = $records{$record} + 1;
-    }
-    else {
-	$records{$record} = 1;
-    }
+say "Sorting...";
+my (%kmers, %records);
+
+for my $i (sort keys %knucs) {
+    my ($record, $kmer) = split /\t/, $i;
+
+    $kmers{$kmer}++;
+    $records{$record}++;
 }
 
-print "Printing...\n";
-print OUT "${k}-mer";
-for $j (sort keys %records) {
-    print OUT "\t$prefix_$j";
+say "Printing...";
+print $out_fh "${k}-mer";
+for my $j (sort keys %records) {
+    #print $out_fh "\t${prefix}_$j"; # is there a bug in the original?
+    print $out_fh "\t$j"; # this is the output of the original
 }
-print OUT "\n";
-$testsum = 0;
-for $i (sort keys %kmers) {
-    print OUT "$i";
-    for $j (sort keys %records) {
-	$key = $j . "\t" . $i;
-	if ($knucs{$key}) {
-	    print OUT "\t$knucs{$key}";
-	    $testsum = $testsum + $knucs{$key};
-	}
-	else {
-	    print OUT "\t0";
-	}
+print $out_fh "\n";
+
+my $testsum = 0;
+for my $i (sort keys %kmers) {
+    print $out_fh $i;
+    for my $j (sort keys %records) {
+        my $key = join "\t", $j, $i;
+        if ($knucs{$key}) {
+            print $out_fh "\t$knucs{$key}";
+            $testsum += $knucs{$key};
+        } else {
+            print $out_fh "\t0";
+        }
     }
-    print OUT "\n";
+    print $out_fh "\n";
 }
+
 #print "TEST SUM = $testsum\n";
-close(IN);
-close(OUT);
+close($in_fh);
+close($out_fh);
 
-$stop = time();
-$total_time = $stop - $start;
-print "Total time to run = $total_time\n";
-    
+my $stop       = time();
+my $total_time = $stop - $start;
+say "Total time to run = $total_time";
+exit;
 
 sub usage {
-    print "Get kmer Frequencies\n";
-    print "Usage: get_kmer_frequencies.pl <fasta file>\n";
-    print "This program takes a fasta file, k and prefix as it's parameters.\n\n";
-    print "It returns a tab delimited file (knucs_out.txt) of kmer counts. (columns = records, rows = kmer counts.)\n\n";
-    print "Jennifer Meneghin\n";
-    print "May 11, 2015\n\n";
-    print "Updated. Now results are returned with summed reverse compliments\n";
-    print "Jennifer Meneghin\n";
-    print "February 10, 2016\n\n";
+    say <<USAGE;
+Get kmer Frequencies
+Usage: $0 <fasta file>
+This program takes a fasta file, k and prefix as it's parameters.
+
+It returns a tab delimited file (knucs_out.txt) of kmer counts. (columns = records, rows = kmer counts.)
+
+Jennifer Meneghin
+May 11, 2015
+
+Updated. Now results are returned with summed reverse compliments
+Jennifer Meneghin
+February 10, 2016
+USAGE
+    exit;
 }
 
 sub process_it {
-    @letters = split(//, $seq);
-    $end = $#letters - $k + 1;
-    for $i (0..$end) {
-	$thiskmer = "";
-	for $j ($i..($i+$k-1)) {
-	    $thiskmer = $thiskmer . $letters[$j];
-	}
-	$rckmer = &rc_seq($thiskmer);
-	#print "$id\tthiskmer = $thiskmer\n";
-	#print "$id\trc  kmer = $rckmer\n";
-	if ($thiskmer le $rckmer) {
-	    $key = $id . "\t" . $thiskmer;
-	}
-	else { #count goes in rckmer bin instead
-	    $key = $id . "\t" . $rckmer;
-	}
-	if ($knucs{$key}) {
-	    $knucs{$key} = $knucs{$key} + 1;
-	}
-	else {
-	    $knucs{$key} = 1;
-	}
+    my @letters = split //, $seq;
+    my $end     = @letters - $k;
+
+    for my $i (0 .. $end) {
+        my $thiskmer = q{};
+        for my $j ($i .. ($i + $k - 1)) {
+            $thiskmer .= $letters[$j];
+        }
+        my $rckmer = rc_seq($thiskmer);
+
+        #print "$id\tthiskmer = $thiskmer\n";
+        #print "$id\trc  kmer = $rckmer\n";
+        my $key = join "\t", $id, ($thiskmer le $rckmer ? $thiskmer : $rckmer);
+
+        $knucs{$key}++;
     }
-    $seq = "";
-    $id = "";
+    $seq = q{};
+    $id  = q{};
 }
 
 sub rc_seq {
-    my ($mykmer) = @_;    
-    my @myletters = split(//,$mykmer);
-    my (@rcmykmer);
-    for $i (0..$k-1) {
-	if ($myletters[$i] eq "A") {
-	    $rcmykmer[$k-$i-1] = "T"
-	}
-	elsif ($myletters[$i] eq "C") {
-	    $rcmykmer[$k-$i-1] = "G"
-	}
-	elsif ($myletters[$i] eq "G") {
-	    $rcmykmer[$k-$i-1] = "C"
-	}
-	elsif ($myletters[$i] eq "T") {
-	    $rcmykmer[$k-$i-1] = "A"
-	}
-	else {
-	    $rcmykmer[$k-$i-1] = $myletters[$i]; #No swap of Ns and such
-	}
+    my ($mykmer)  = @_;
+    my @myletters = split //, $mykmer;
+    my (@rcmykmer, $thisrcmykmer);
+
+    for my $i (0 .. $k - 1) {
+        if ($myletters[$i] eq "A") {
+            $rcmykmer[ $k - $i - 1 ] = "T";
+        } elsif ($myletters[$i] eq "C") {
+            $rcmykmer[ $k - $i - 1 ] = "G";
+        } elsif ($myletters[$i] eq "G") {
+            $rcmykmer[ $k - $i - 1 ] = "C";
+        } elsif ($myletters[$i] eq "T") {
+            $rcmykmer[ $k - $i - 1 ] = "A";
+        } else {
+            $rcmykmer[ $k - $i - 1 ] = $myletters[$i];    #No swap of Ns and such
+        }
     }
-    $thisrcmykmer = "";
-    for $i (0..$k-1) {
-	$thisrcmykmer = $thisrcmykmer . $rcmykmer[$i];
-    }
+    $thisrcmykmer = join q{}, map { $rcmykmer[$_] } (0 .. $k - 1);
+
     return $thisrcmykmer;
 }
